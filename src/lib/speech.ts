@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useAppStore } from '../store'
 import { showToast } from './toast'
 
@@ -31,6 +31,18 @@ export function useSpeechInput(onTranscript: (text: string, isFinal: boolean) =>
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const finalHandledRef = useRef(false)
 
+  // recognition.onresult is wired up once, the first time the mic is used
+  // (see ensureRecognition below), but the caller's onTranscript closure —
+  // over InputBar's current text/pendingImages/handleSubmit — is only valid
+  // for the render that created it. Route the handler through this ref, kept
+  // current every render, so a later mic tap always calls into the latest
+  // component state (e.g. an image attached after the very first mic use)
+  // instead of a permanently frozen first-render closure.
+  const onTranscriptRef = useRef(onTranscript)
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript
+  })
+
   function ensureRecognition() {
     if (recognitionRef.current) return recognitionRef.current
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -42,7 +54,7 @@ export function useSpeechInput(onTranscript: (text: string, isFinal: boolean) =>
     recognition.onresult = (e) => {
       const transcript = Array.from(e.results).map((r) => r[0].transcript).join('')
       const isFinal = e.results[e.results.length - 1]?.isFinal
-      onTranscript(transcript, !!isFinal)
+      onTranscriptRef.current(transcript, !!isFinal)
       if (isFinal && !finalHandledRef.current) {
         finalHandledRef.current = true
         stop()
