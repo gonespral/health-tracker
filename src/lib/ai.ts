@@ -195,8 +195,18 @@ export async function buildClaudeSystem() {
     const dw = data.workouts[ds] || []
     if (!df.length && !dw.length) continue
     recentLines.push(`${fmtDateShort(ds)}${i === 0 ? ' (today)' : ''}:`)
-    df.forEach((e) => recentLines.push(`  food     [${e.id}] ${e.description} — ${round(e.calories)} kcal (${e.meal || 'snack'})`))
-    dw.forEach((e) => recentLines.push(`  workout  [${e.id}] ${e.description} (${e.intensity})${e.calories_burned ? ' ' + e.calories_burned + ' kcal burned' : ''}`))
+    df.forEach((e) => recentLines.push(`  food     [${e.id}] ${e.description} — ${round(e.calories)} kcal, P${round(e.protein)}g C${round(e.carbs)}g F${round(e.fat)}g (${e.meal || 'snack'})`))
+    dw.forEach((e) => {
+      const parts = [e.intensity || 'medium']
+      if (e.activity_type) parts.push(e.activity_type)
+      if (e.duration_min) parts.push(`${e.duration_min}min`)
+      if (e.distance_km) parts.push(`${e.distance_km}km`)
+      if (e.heart_rate_avg) parts.push(`${e.heart_rate_avg}bpm avg`)
+      if (e.calories_burned) parts.push(`${e.calories_burned}kcal burned`)
+      if (e.time) parts.push(`started ${e.time}`)
+      if (e.source) parts.push(`via ${e.source}`)
+      recentLines.push(`  workout  [${e.id}] ${e.description} (${parts.join(', ')})`)
+    })
   }
 
   const burnedToday = (data.workouts[today] || []).reduce((s, w) => s + (w.calories_burned || 0), 0)
@@ -221,7 +231,7 @@ Protein: ${fmt(totals.protein)}g / ${TARGETS.protein}g  Carbs: ${fmt(totals.carb
 Current targets: goal ${calTarget} kcal + ${eatback} eat-back = ${effectiveTarget} kcal today / P${TARGETS.protein}g C${TARGETS.carbs}g F${TARGETS.fat}g
 Latest weight: ${weights[0] ? weights[0].kg.toFixed(1) + ' kg (' + fmtDateShort(weights[0].date) + ')' : 'not logged'}
 
-Recent log (last 7 days) — use IDs to edit or delete:
+Recent log (last 7 days) — use IDs to edit, delete, or duplicate with modifications. Each entry lists every detail already stored for it (duration, distance, heart rate, calories, start time, source, etc) — never ask the user to repeat something already shown here:
 ${recentLines.length ? recentLines.join('\n') : '  (empty)'}
 
 Saved meal presets:
